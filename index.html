@@ -5,26 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PlusLab 3D Generator</title>
     
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Import Maps -->
     <script type="importmap">
         {
             "imports": {
                 "react": "https://esm.sh/react@18.2.0",
                 "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
                 "three": "https://esm.sh/three@0.160.0",
-                "@react-three/fiber": "https://esm.sh/@react-three/fiber@8.15.14",
-                "@react-three/drei": "https://esm.sh/@react-three/drei@9.96.1",
+                "@react-three/fiber": "https://esm.sh/@react-three/fiber@8.15.16?external=three,react,react-dom",
+                "@react-three/drei": "https://esm.sh/@react-three/drei@9.99.0?external=three,react,react-dom,@react-three/fiber",
                 "uuid": "https://esm.sh/uuid@9.0.1"
             }
         }
     </script>
 
+    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; background: #000; height: 100%; }
-        canvas { touch-action: none; }
+        canvas { touch-action: none; outline: none; }
         
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -37,6 +40,58 @@
             backdrop-filter: blur(10px);
             border-right: 1px solid rgba(255,255,255,0.1);
         }
+        
+        /* --- FIX FÜR SLIDER --- */
+        input[type=range] {
+            -webkit-appearance: none; 
+            width: 100%; 
+            background: transparent; 
+        }
+        
+        input[type=range]:focus {
+            outline: none;
+        }
+
+        /* Webkit Thumb (Chrome, Safari, Edge) */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: #60a5fa; /* blue-400 */
+            cursor: pointer;
+            margin-top: -5px; /* Centers thumb on the track */
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.5);
+        }
+
+        /* Webkit Track */
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #374151; /* gray-700 */
+            border-radius: 2px;
+        }
+
+        /* Firefox Thumb */
+        input[type=range]::-moz-range-thumb {
+            height: 14px;
+            width: 14px;
+            border: none;
+            border-radius: 50%;
+            background: #60a5fa;
+            cursor: pointer;
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.5);
+        }
+
+        /* Firefox Track */
+        input[type=range]::-moz-range-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #374151;
+            border-radius: 2px;
+        }
     </style>
 </head>
 <body>
@@ -47,7 +102,7 @@
         import { createRoot } from 'react-dom/client';
         import * as THREE from 'three';
         import { Canvas, useFrame, useThree } from '@react-three/fiber';
-        import { OrbitControls, Environment, PerspectiveCamera } from '@react-three/drei';
+        import { OrbitControls, PerspectiveCamera, Environment } from '@react-three/drei';
 
         // --- ICONS ---
         const Icon = ({ path, size = 14, className = "" }) => (
@@ -59,8 +114,9 @@
             Move: '<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="19 9 22 12 19 15"/><polyline points="15 19 12 22 9 19"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>',
             Layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
             Brush: '<path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2.5 2.24 0 .46.62.8.62.8"/><path d="M14.26 17.74c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2.5 2.24 0 .46.62.8.62.8"/>',
-            Rotate: '<path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>',
-            Download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>'
+            Download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+            Reset: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+            Shuffle: '<polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/>'
         };
 
         // --- UI COMPONENTS ---
@@ -75,16 +131,16 @@
             </div>
         );
 
-        const Slider = ({ label, value, min, max, step = 0.1, onChange }) => (
+        const Slider = ({ label, value, min, max, step = 0.1, onChange, unit = "" }) => (
             <div className="flex flex-col gap-1">
                 <div className="flex justify-between text-[10px] text-gray-400 font-mono">
                     <span>{label}</span>
-                    <span className="text-blue-300">{typeof value === 'number' ? value.toFixed(2) : value}</span>
+                    <span className="text-blue-300">{typeof value === 'number' ? value.toFixed(2) : value}{unit}</span>
                 </div>
+                {/* CSS class removed for styling to rely on custom CSS for better cross-browser range support */}
                 <input 
                     type="range" min={min} max={max} step={step} value={value} 
                     onChange={(e) => onChange(parseFloat(e.target.value))}
-                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400"
                 />
             </div>
         );
@@ -93,15 +149,14 @@
             <div className="flex items-center justify-between text-[10px]">
                 <span className="text-gray-400 font-mono">{label}</span>
                 <div className="flex items-center gap-2">
-                    <span className="font-mono text-gray-500">{value}</span>
+                    <span className="font-mono text-gray-500 uppercase">{value}</span>
                     <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="w-6 h-6 rounded cursor-pointer bg-transparent border-0 p-0" />
                 </div>
             </div>
         );
 
-        // --- 3D COMPONENTS ---
+        // --- 3D LOGIC ---
 
-        // Pseudo Random Helper
         const pseudoRandom = (x, y) => {
             return Math.sin(x * 12.9898 + y * 78.233) * 43758.5453 - Math.floor(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453);
         };
@@ -116,7 +171,6 @@
                 color1, color2, opacity 
             } = config;
 
-            // 1. Generate Geometry (Extruded Plus)
             const geometry = useMemo(() => {
                 const shape = new THREE.Shape();
                 const s = size / 2;
@@ -138,36 +192,31 @@
 
                 const extrudeSettings = {
                     steps: 1,
-                    depth: Math.max(0.1, extrudeDepth), // Prevent 0 depth
+                    depth: Math.max(0.1, extrudeDepth), 
                     bevelEnabled: true,
-                    bevelThickness: 0.5,
-                    bevelSize: 0.5,
+                    bevelThickness: 0.2,
+                    bevelSize: 0.2,
                     bevelSegments: 2
                 };
 
                 const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-                // Center geometry
-                geo.center();
+                geo.center(); 
                 return geo;
             }, [size, thickness, extrudeDepth]);
 
-            // 2. Material (Translucent G+D Style)
-            // Using MeshPhysicalMaterial for glass-like feel
             const material = useMemo(() => new THREE.MeshPhysicalMaterial({
                 color: new THREE.Color(color1),
                 emissive: new THREE.Color(color2),
-                emissiveIntensity: 0.2,
+                emissiveIntensity: 0.5,
                 metalness: 0.1,
-                roughness: 0.2,
-                transmission: 0.0, // Glass effect off for better performance with many objects, relying on opacity
+                roughness: 0.1,
                 transparent: true,
                 opacity: opacity,
                 side: THREE.DoubleSide,
-                depthWrite: false, // Important for transparency overlap
-                blending: THREE.AdditiveBlending // Glowy look
+                depthWrite: false, 
+                blending: THREE.AdditiveBlending 
             }), [color1, color2, opacity]);
 
-            // 3. Grid Calculation & Instance Update
             const tempObject = new THREE.Object3D();
             
             useFrame(({ clock }) => {
@@ -182,55 +231,44 @@
                     for (let y = 0; y < gridCount; y++) {
                         const id = `${x}-${y}`;
                         
-                        // Base Position
                         let posX = (x * spacing) - centerOffset;
                         let posY = (y * spacing) - centerOffset;
                         let posZ = 0;
 
-                        // Row Offset (Rhythm)
                         if (y % 2 !== 0) posX += rowOffset;
 
-                        // Wave (Z-Axis & Y-Axis movement)
-                        const waveZ = Math.sin((x * 0.2) + (time * 0.5)) * waveAmp;
-                        const waveY = Math.cos((y * 0.2) + (time * 0.5)) * waveAmp * 0.5;
+                        const waveZ = Math.sin((x * 0.2) + (time * waveFreq)) * waveAmp;
+                        const waveY = Math.cos((y * 0.2) + (time * waveFreq)) * (waveAmp * 0.3);
                         
                         posZ += waveZ;
                         posY += waveY;
 
-                        // Noise
                         const noise = pseudoRandom(x, y);
                         posZ += noise * noiseAmp;
 
                         tempObject.position.set(posX, posY, posZ);
 
-                        // Orientation (Rotation)
-                        tempObject.rotation.set(0, 0, 0); // Reset
-                        if (orientation === 1) tempObject.rotation.x = Math.PI / 2; // Flat (Floor)
-                        if (orientation === 2) tempObject.rotation.y = Math.PI / 2; // Side
-                        // orientation 0 is Default (Face Camera)
+                        tempObject.rotation.set(0, 0, 0); 
+                        if (orientation === 1) tempObject.rotation.x = -Math.PI / 2; 
+                        if (orientation === 2) tempObject.rotation.y = Math.PI / 2; 
 
-                        // Scale (Base + Paint Modifications)
                         let scale = 1;
                         if (paintingState.modifications[id]) {
                             scale += paintingState.modifications[id];
                         }
-                        scale = Math.max(0.1, scale);
+                        scale = Math.max(0.01, scale); 
                         tempObject.scale.set(scale, scale, scale);
 
                         tempObject.updateMatrix();
                         meshRef.current.setMatrixAt(i, tempObject.matrix);
-                        
-                        // Color variation per instance could go here using setColorAt
                         i++;
                     }
                 }
                 meshRef.current.instanceMatrix.needsUpdate = true;
             });
 
-            // Handle Interaction
             const handlePointerMove = (e) => {
-                if (paintingState.isPainting && paintingState.brushSize > 0) {
-                   // Calculate grid index from instanceId
+                if (paintingState.isPainting) {
                    const instanceId = e.instanceId;
                    if (instanceId !== undefined) {
                        setHoveredInstance(instanceId);
@@ -244,7 +282,7 @@
                     ref={meshRef} 
                     args={[geometry, material, gridCount * gridCount]}
                     onPointerMove={handlePointerMove}
-                    onPointerDown={handlePointerMove} // Also paint on click
+                    onPointerDown={handlePointerMove}
                 />
             );
         };
@@ -252,31 +290,23 @@
         const Scene = ({ config, paintingState, onPaint }) => {
             const [hoveredInstance, setHoveredInstance] = useState(null);
 
-            // Logic to apply paint
             const handlePaint = (instanceIndex) => {
-                 // Convert linear index back to grid coordinates (simple way, or just use index as key)
-                 // Let's use x-y key for consistency with previous app, but index is faster here.
-                 // Index is x * gridCount + y (inner loop is y) OR outer loop x? 
-                 // In the loop above: x is outer, y is inner. i increments per y.
-                 // So index = x * gridCount + y.
-                 
                  const y = instanceIndex % config.gridCount;
                  const x = Math.floor(instanceIndex / config.gridCount);
                  const id = `${x}-${y}`;
-                 
                  onPaint(id);
             };
 
             return (
                 <>
-                    <PerspectiveCamera makeDefault position={[0, 0, 100]} fov={50} />
+                    <PerspectiveCamera makeDefault position={[0, 0, 120]} fov={50} />
                     <OrbitControls makeDefault enableDamping dampingFactor={0.1} />
 
-                    {/* Lights matching G+D aesthetic */}
-                    <ambientLight intensity={0.5} color="#001133" />
-                    <directionalLight position={[50, 50, 50]} intensity={2} color="#4dc0ff" />
-                    <pointLight position={[-50, -50, 50]} intensity={1} color="#ff00aa" />
-                    <fog attach="fog" args={[config.bgColor, 50, 300]} />
+                    <ambientLight intensity={0.2} color="#001133" />
+                    <directionalLight position={[50, 50, 50]} intensity={1.5} color="#ffffff" />
+                    <pointLight position={[-50, -50, 50]} intensity={2} color={config.color2} distance={200} />
+                    
+                    <fog attach="fog" args={[config.bgColor, 80, 400]} />
 
                     <group>
                         <PlusInstances 
@@ -293,45 +323,77 @@
         // --- MAIN APP ---
 
         function App() {
-            // State
+            // Configuration State
             const [gridCount, setGridCount] = useState(20);
-            const [spacing, setSpacing] = useState(8);
-            const [size, setSize] = useState(4);
-            const [thickness, setThickness] = useState(1.2);
-            const [extrudeDepth, setExtrudeDepth] = useState(10); // NEW: Extrusion
-            const [orientation, setOrientation] = useState(0); // NEW: 0=Face, 1=Flat, 2=Side
+            const [spacing, setSpacing] = useState(7);
+            const [size, setSize] = useState(3.5);
+            const [thickness, setThickness] = useState(1);
+            const [extrudeDepth, setExtrudeDepth] = useState(10);
+            const [orientation, setOrientation] = useState(0); 
             
-            const [waveAmp, setWaveAmp] = useState(5);
+            const [waveAmp, setWaveAmp] = useState(0);
             const [waveFreq, setWaveFreq] = useState(1);
-            const [noiseAmp, setNoiseAmp] = useState(2);
+            const [noiseAmp, setNoiseAmp] = useState(0);
             const [rowOffset, setRowOffset] = useState(0);
 
-            const [color1, setColor1] = useState("#00b7ff");
-            const [color2, setColor2] = useState("#003366");
-            const [bgColor, setBgColor] = useState("#02040a");
-            const [opacity, setOpacity] = useState(0.6);
+            const [color1, setColor1] = useState("#0066cc");
+            const [color2, setColor2] = useState("#44aaff");
+            const [bgColor, setBgColor] = useState("#050814");
+            const [opacity, setOpacity] = useState(0.5);
 
             // Painting State
             const [isPainting, setIsPainting] = useState(false);
-            const [brushTool, setBrushTool] = useState(1); // 1 = grow, -1 = shrink
+            const [brushTool, setBrushTool] = useState(1); 
             const [modifications, setModifications] = useState({});
 
             const handlePaint = (id) => {
                 if (!isPainting) return;
                 setModifications(prev => {
                     const current = prev[id] || 0;
-                    return { ...prev, [id]: Math.min(3, Math.max(-0.9, current + (0.05 * brushTool))) };
+                    return { ...prev, [id]: Math.min(4, Math.max(-0.9, current + (0.1 * brushTool))) };
                 });
             };
 
             const resetMods = () => setModifications({});
+
+            // NEW: Reset & Random
+            const reset = () => {
+                setGridCount(20); setSpacing(7); setSize(3.5); setThickness(1);
+                setExtrudeDepth(10); setOrientation(0);
+                setWaveAmp(0); setWaveFreq(1); setNoiseAmp(0); setRowOffset(0);
+                setColor1("#0066cc"); setColor2("#44aaff"); setBgColor("#050814"); setOpacity(0.5);
+                setModifications({});
+            };
+
+            const randomize = () => {
+                const r = (min, max) => Math.random() * (max - min) + min;
+                const rInt = (min, max) => Math.floor(r(min, max));
+                const rColor = () => '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+
+                setSpacing(r(4, 15));
+                setSize(r(1, 6));
+                setThickness(r(0.5, 3));
+                setExtrudeDepth(r(2, 25));
+                setOrientation(rInt(0, 3));
+                
+                setWaveAmp(Math.random() > 0.5 ? r(0, 15) : 0);
+                setWaveFreq(r(0.5, 2));
+                setNoiseAmp(Math.random() > 0.5 ? r(0, 15) : 0);
+                setRowOffset(Math.random() > 0.5 ? r(-5, 5) : 0);
+                
+                setColor1(rColor());
+                setColor2(rColor());
+                setBgColor(Math.random() > 0.7 ? "#000000" : rColor());
+                setOpacity(r(0.3, 0.9));
+                setModifications({});
+            };
             
             const handleExport = () => {
                 const canvas = document.querySelector('canvas');
                 if (canvas) {
                     const link = document.createElement('a');
-                    link.download = 'pluslab-3d-render.png';
-                    link.href = canvas.toDataURL('image/png').replace('image/png', 'image/octet-stream');
+                    link.download = `pluslab-3d-${Date.now()}.png`;
+                    link.href = canvas.toDataURL('image/png');
                     link.click();
                 }
             };
@@ -346,28 +408,39 @@
                 <div className="flex h-full text-white font-sans selection:bg-blue-500/30">
                     
                     {/* LEFT PANEL */}
-                    <aside className="w-80 flex-shrink-0 glass-panel overflow-y-auto flex flex-col z-10 shadow-2xl">
+                    <aside className="w-80 flex-shrink-0 glass-panel overflow-y-auto flex flex-col z-10 shadow-2xl relative">
+                        {/* HEADER WITH BUTTONS */}
                         <div className="p-4 border-b border-gray-700 bg-gray-900/50 sticky top-0 backdrop-blur-md z-20">
-                            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">PlusLab 3D</h1>
-                            <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Spatial Generator</p>
+                            <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-white bg-clip-text text-transparent">PlusLab 3D</h1>
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1 opacity-70">Spatial Extruder</p>
+                                </div>
+                                <div className="flex gap-2">
+                                     <button onClick={reset} className="p-2 bg-gray-800 hover:bg-gray-700 rounded text-gray-400 transition-colors" title="Alles zurücksetzen"><Icon path={Icons.Reset} /></button>
+                                     <button onClick={randomize} className="p-2 bg-blue-600 hover:bg-blue-500 rounded text-white font-bold transition-colors shadow-lg shadow-blue-900/50" title="Zufällige Werte"><Icon path={Icons.Shuffle} /></button>
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="p-4 space-y-6">
+                        <div className="p-4 space-y-6 pb-24">
                             
-                            {/* GEOMETRIE */}
-                            <ControlGroup title="Form & Extrusion" icon={Icons.Box}>
-                                <Slider label="Größe (Arm)" value={size} min={1} max={10} onChange={setSize} />
+                            {/* GEOMETRY & EXTRUSION */}
+                            <ControlGroup title="3D Geometrie" icon={Icons.Box}>
+                                <Slider label="Armlänge" value={size} min={1} max={10} onChange={setSize} />
                                 <Slider label="Dicke" value={thickness} min={0.2} max={4} onChange={setThickness} />
-                                <Slider label="Extrusion (Tiefe)" value={extrudeDepth} min={0.1} max={30} step={0.5} onChange={setExtrudeDepth} />
+                                <div className="p-2 border border-blue-500/30 rounded bg-blue-900/10">
+                                    <Slider label="Extrusion (Tiefe)" value={extrudeDepth} min={0.1} max={30} step={0.5} onChange={setExtrudeDepth} />
+                                </div>
                                 
-                                <div className="mt-2">
-                                    <label className="text-[10px] text-gray-400 font-mono block mb-1">Ausrichtung</label>
+                                <div className="mt-3">
+                                    <label className="text-[10px] text-gray-400 font-mono block mb-2 uppercase">Ausrichtung</label>
                                     <div className="flex bg-gray-800 rounded p-1 gap-1">
                                         {['Frontal', 'Boden', 'Seite'].map((label, i) => (
                                             <button 
                                                 key={i}
                                                 onClick={() => setOrientation(i)}
-                                                className={`flex-1 py-1 text-[9px] rounded uppercase font-bold transition-colors ${orientation === i ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                                className={`flex-1 py-1.5 text-[9px] rounded uppercase font-bold transition-all ${orientation === i ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-700'}`}
                                             >
                                                 {label}
                                             </button>
@@ -382,61 +455,73 @@
                                 <Slider label="Versatz (Reihen)" value={rowOffset} min={-10} max={10} onChange={setRowOffset} />
                             </ControlGroup>
 
-                            {/* BEWEGUNG */}
-                            <ControlGroup title="Rhythmus & Chaos" icon={Icons.Move}>
+                            {/* MOTION */}
+                            <ControlGroup title="Rhythmus" icon={Icons.Move}>
                                 <Slider label="Wellen Amplitude" value={waveAmp} min={0} max={20} onChange={setWaveAmp} />
-                                <Slider label="Noise (Unruhe Z)" value={noiseAmp} min={0} max={20} onChange={setNoiseAmp} />
+                                <Slider label="Wellen Frequenz" value={waveFreq} min={0.1} max={3} step={0.1} onChange={setWaveFreq} />
+                                <Slider label="Noise (Chaos Z)" value={noiseAmp} min={0} max={20} onChange={setNoiseAmp} />
                             </ControlGroup>
 
                             {/* MATERIAL */}
-                            <ControlGroup title="Optik (G+D Style)" icon={Icons.Layers}>
-                                <ColorPicker label="Hauptfarbe" value={color1} onChange={setColor1} />
-                                <ColorPicker label="Glow Farbe" value={color2} onChange={setColor2} />
+                            <ControlGroup title="Material (G+D Style)" icon={Icons.Layers}>
+                                <ColorPicker label="Grundfarbe" value={color1} onChange={setColor1} />
+                                <ColorPicker label="Emissive Glow" value={color2} onChange={setColor2} />
                                 <ColorPicker label="Hintergrund" value={bgColor} onChange={setBgColor} />
-                                <div className="mt-2"></div>
+                                <div className="mt-3"></div>
                                 <Slider label="Transparenz" value={opacity} min={0.1} max={1} step={0.01} onChange={setOpacity} />
                             </ControlGroup>
 
-                            {/* MALEN */}
-                            <ControlGroup title="Interaktion" icon={Icons.Brush}>
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-[10px] text-gray-400">Mal-Modus</span>
+                            {/* PAINTING */}
+                            <ControlGroup title="Malen im Raum" icon={Icons.Brush}>
+                                <div className="flex items-center justify-between mb-3 bg-gray-800 p-2 rounded">
+                                    <span className="text-[10px] text-gray-300 font-bold uppercase">Mal-Modus</span>
                                     <button 
                                         onClick={() => setIsPainting(!isPainting)}
-                                        className={`w-10 h-5 rounded-full relative transition-colors ${isPainting ? 'bg-blue-500' : 'bg-gray-700'}`}
+                                        className={`w-10 h-5 rounded-full relative transition-colors ${isPainting ? 'bg-blue-500' : 'bg-gray-600'}`}
                                     >
-                                        <div className={`absolute w-3 h-3 bg-white rounded-full top-1 transition-all ${isPainting ? 'left-6' : 'left-1'}`}></div>
+                                        <div className={`absolute w-3 h-3 bg-white rounded-full top-1 transition-all shadow-sm ${isPainting ? 'left-6' : 'left-1'}`}></div>
                                     </button>
                                 </div>
                                 {isPainting && (
                                     <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
                                         <div className="flex gap-2">
-                                            <button onClick={() => setBrushTool(1)} className={`flex-1 py-1 text-[10px] rounded border ${brushTool === 1 ? 'bg-blue-600 border-blue-500 text-white' : 'border-gray-600 text-gray-400'}`}>+ Wachsen</button>
-                                            <button onClick={() => setBrushTool(-1)} className={`flex-1 py-1 text-[10px] rounded border ${brushTool === -1 ? 'bg-blue-600 border-blue-500 text-white' : 'border-gray-600 text-gray-400'}`}>- Schrumpfen</button>
+                                            <button onClick={() => setBrushTool(1)} className={`flex-1 py-2 text-[10px] rounded border font-bold transition-all ${brushTool === 1 ? 'bg-blue-600 border-blue-500 text-white' : 'border-gray-600 text-gray-400 hover:bg-gray-800'}`}>+ Vergrößern</button>
+                                            <button onClick={() => setBrushTool(-1)} className={`flex-1 py-2 text-[10px] rounded border font-bold transition-all ${brushTool === -1 ? 'bg-blue-600 border-blue-500 text-white' : 'border-gray-600 text-gray-400 hover:bg-gray-800'}`}>- Verkleinern</button>
                                         </div>
-                                        <button onClick={resetMods} className="w-full py-1 text-[10px] text-red-300 bg-red-900/20 border border-red-900/50 rounded hover:bg-red-900/40">Alle zurücksetzen</button>
-                                        <p className="text-[9px] text-gray-500 italic text-center pt-1">Klicke oder ziehe die Maus über die Objekte.</p>
+                                        <button onClick={resetMods} className="w-full py-2 text-[10px] flex items-center justify-center gap-2 text-red-300 bg-red-900/20 border border-red-900/30 rounded hover:bg-red-900/40 transition-colors">
+                                            <Icon path={Icons.Reset} /> Reset Painting
+                                        </button>
+                                        <p className="text-[9px] text-blue-300/70 text-center pt-1 border-t border-gray-700/50 mt-2">Bewege die Maus über die Objekte im 3D Raum.</p>
                                     </div>
                                 )}
                             </ControlGroup>
                         </div>
 
-                        <div className="mt-auto p-4 border-t border-gray-700 bg-gray-900">
-                             <button onClick={handleExport} className="w-full bg-white text-black font-bold py-2 rounded flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors">
-                                <Icon path={Icons.Download} /> PNG Render Speichern
+                        <div className="absolute bottom-0 left-0 w-full p-4 border-t border-gray-700 bg-gray-900/90 backdrop-blur">
+                             <button onClick={handleExport} className="w-full bg-white text-black font-bold py-2 rounded flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors shadow-lg active:scale-95">
+                                <Icon path={Icons.Download} /> PNG EXPORT
                              </button>
                         </div>
                     </aside>
 
-                    {/* MAIN CANVAS */}
-                    <main className="flex-1 relative bg-black" style={{ background: `radial-gradient(circle at center, #1a2a4a 0%, ${bgColor} 100%)` }}>
-                        <Canvas gl={{ preserveDrawingBuffer: true, antialias: true, toneMappingExposure: 1.2 }}>
-                            <Scene config={config} paintingState={{ isPainting, modifications, brushTool }} onPaint={handlePaint} />
-                        </Canvas>
+                    {/* MAIN CANVAS AREA */}
+                    <main className="flex-1 relative bg-black cursor-move">
+                         {/* Dynamic Background */}
+                         <div className="absolute inset-0 z-0" style={{ 
+                             background: `radial-gradient(circle at 50% 50%, #1a2a4a 0%, ${bgColor} 120%)`,
+                             opacity: 0.8
+                         }}></div>
+
+                        <div className="absolute inset-0 z-10">
+                            {/* Updated Canvas Config for R3F v8 */}
+                            <Canvas gl={{ preserveDrawingBuffer: true, antialias: true }} camera={{ position: [0, 0, 120], fov: 50 }}>
+                                <Scene config={config} paintingState={{ isPainting, modifications, brushTool }} onPaint={handlePaint} />
+                            </Canvas>
+                        </div>
                         
-                        {/* Overlay Info */}
-                        <div className="absolute bottom-4 right-4 text-xs font-mono text-white/30 pointer-events-none">
-                            Linke Maustaste: Rotieren | Rechte Maustaste: Verschieben | Rad: Zoom
+                        {/* Overlay Controls Info */}
+                        <div className="absolute bottom-4 right-4 text-[10px] font-mono text-white/20 pointer-events-none z-20 select-none bg-black/40 px-2 py-1 rounded backdrop-blur-sm">
+                            LMB: Rotieren | RMB: Pan | Scroll: Zoom
                         </div>
                     </main>
                 </div>
